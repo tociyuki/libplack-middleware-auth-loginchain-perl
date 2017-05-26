@@ -219,7 +219,7 @@ __END__
 
 =head1 NAME
 
-MyPlack::Middleware::Auth::LoginChain
+Plack::Middleware::Auth::LoginChain - Multi phase authentication session
 
 =head1 VERSION
 
