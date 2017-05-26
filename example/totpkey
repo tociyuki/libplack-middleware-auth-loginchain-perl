@@ -1,0 +1,1 @@
+otpauth://totp/Example:alice@example.net?secret=PBHWM6TSGJMEGZRU&issuer=Example

@@ -11,6 +11,38 @@ To install this module, run the following commands:
 	make test
 	make install
 
+EXAMPLE
+
+In example directory, we find elemental PSGI application.
+To try it, we install additional modules.
+
+    cpanm Data::Section::Simple
+    cpanm Digest::SHA
+    cpanm File::Slurp
+
+Open two terminals, run time-based one-time password generator
+on the one of them.
+
+    perl example/totauth.pl example/totpkey
+
+On the another of them, run example PSGI application.
+
+    plackup example/helloauth.psgi
+
+On our browser, get index page of example.
+
+    firefox http://localhost:5000/
+
+GET /login page, and try two-phase authentication.
+
+    Username    alice
+    Password    {example/totauth.pl output}
+
+On Login submit, we will get /login2 page.
+
+    Username    alice
+    Password    7nDgOqcl4Loz160g
+
 SUPPORT AND DOCUMENTATION
 
 After installing, you can find documentation for this module with the
