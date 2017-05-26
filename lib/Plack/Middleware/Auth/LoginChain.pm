@@ -9,7 +9,7 @@ use Plack::Session;
 use Plack::Util;
 use parent qw(Plack::Middleware);
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Plack::Util::Accessor qw(login_spec logout_spec);
 
@@ -72,7 +72,6 @@ sub authenticate {
 
 sub update_session {
     my($self, $idx, $env, $auth) = @_;
-    $self->clean_session($env);
     my $session = Plack::Session->new($env);
     if (! $auth) {
         $session->remove('account');
@@ -83,6 +82,8 @@ sub update_session {
         $session->set('redirect_uri', $auth->{'redirect_uri'});
     }
     else {
+        $self->clean_session($env);
+        $env->{'.loginchain.erase'} = Plack::Util::FALSE;
         my $chain_uri = $self->login_spec->[$idx + 1]{'uri'};
         $session->set($chain_uri . '#account', $auth->{'account'});
     }
@@ -102,6 +103,16 @@ sub clean_session {
 sub call {
     my($self, $env) = @_;
     $env->{'psgix.session.options'}{'change_id'} = 1;
+    local $env->{'.loginchain.erase'} = Plack::Util::TRUE;
+    my $res = $self->dispatch($env);
+    if ($env->{'.loginchain.erase'}) {
+        $self->clean_session($env);
+    }
+    return $res;
+}
+
+sub dispatch {
+    my($self, $env) = @_;
     my $method = $env->{'REQUEST_METHOD'};
     $method = 'HEAD' eq $method ? 'GET' : $method;
     for my $idx (0 .. $#{$self->login_spec}) {
@@ -118,6 +129,7 @@ sub call {
         return $self->method_not_allowed($env);
     }
     $self->clean_session($env);
+    $env->{'.loginchain.erase'} = Plack::Util::FALSE;
     return $self->app->($env);
 }
 
@@ -135,6 +147,7 @@ sub get_login {
     }
     my $uri_protect = $self->gen_protect;
     $session->set($uri . '#protect', $uri_protect);
+    $env->{'.loginchain.erase'} = Plack::Util::FALSE;
     my $res = $opt->{'responder'}->($req, {
         'realm' => $opt->{'realm'} || q(),
         'norealm' => ($opt->{'realm'} ? q() : 1),
@@ -186,7 +199,6 @@ sub call_logout {
 
 sub redirect_first_phase {
     my($self, $req) = @_;
-    $self->clean_session($req->env);
     my $location = $self->login_spec->[0]{'uri'};
     return $self->redirect($req, $location, 303)->finalize;
 }
@@ -202,7 +214,6 @@ sub redirect {
 
 sub method_not_allowed {
     my($self, $env) = @_;
-    $self->clean_session($env);
     my $body = 'method not allowed';
     return [405, [
         'Content-Type' => 'text/plain; charset=UTF-8',
@@ -223,7 +234,7 @@ Plack::Middleware::Auth::LoginChain - Multi phase authentication session
 
 =head1 VERSION
 
-0.01
+0.02
 
 =head1 SYNOPSIS
 
@@ -339,6 +350,10 @@ first phase always.
 =item C<call>
 
 Here is the Plack middleware entry point.
+
+=item C<dispatch>
+
+Dispatch some routes for REQUEST_METHOD and PATH_INFO.
 
 =item C<get_login>
 

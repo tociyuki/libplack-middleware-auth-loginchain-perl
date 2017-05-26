@@ -1,4 +1,7 @@
 Revision history for Plack-Middleware-Auth-LoginChain
 
+0.02    Fri, 26 May 2017 08:33:49 UTC
+        clear_session on defaults.
+
 0.01    Fri, 26 May 2017 06:22:04 UTC
         First version.
