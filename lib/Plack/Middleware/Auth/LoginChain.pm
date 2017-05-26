@@ -83,7 +83,6 @@ sub update_session {
     }
     else {
         $self->clean_session($env);
-        $env->{'.loginchain.erase'} = Plack::Util::FALSE;
         my $chain_uri = $self->login_spec->[$idx + 1]{'uri'};
         $session->set($chain_uri . '#account', $auth->{'account'});
     }
@@ -97,6 +96,7 @@ sub clean_session {
         $session->remove($stage->{'uri'} . '#account');
         $session->remove($stage->{'uri'} . '#protect');
     }
+    $env->{'.loginchain.erase'} = Plack::Util::FALSE;
     return $self;
 }
 
@@ -129,7 +129,6 @@ sub dispatch {
         return $self->method_not_allowed($env);
     }
     $self->clean_session($env);
-    $env->{'.loginchain.erase'} = Plack::Util::FALSE;
     return $self->app->($env);
 }
 
@@ -146,8 +145,9 @@ sub get_login {
         return $self->redirect_first_phase($req);
     }
     my $uri_protect = $self->gen_protect;
+    $self->clean_session($env);
+    $session->set($uri . '#account', $uri_account);
     $session->set($uri . '#protect', $uri_protect);
-    $env->{'.loginchain.erase'} = Plack::Util::FALSE;
     my $res = $opt->{'responder'}->($req, {
         'realm' => $opt->{'realm'} || q(),
         'norealm' => ($opt->{'realm'} ? q() : 1),
