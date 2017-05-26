@@ -20,6 +20,7 @@ WriteMakefile(
     },
     PREREQ_PM => {
         'Plack'             => '1.0044',
+        'Plack::Middleware::Session' => '0.30',
         'Crypt::OpenSSL::Random' => '0.11',
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
