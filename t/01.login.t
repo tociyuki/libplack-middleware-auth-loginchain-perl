@@ -27,7 +27,7 @@ sub auth_two {
     return {'account' => $account, 'redirect_uri' => "/$account"};
 }
 
-sub auth_responder {
+sub auth_renderer {
     my($req, $param) = @_;
     my $t = "title\tlogin\n";
     for my $k (qw(realm account home faccount fprotect)) {
@@ -41,8 +41,8 @@ sub auth_responder {
 
 my $app = sub {
     my($env) = @_;
-    my $account = exists $env->{'psgix.session'}{'account'}
-        ? $env->{'psgix.session'}{'account'} : 'GUEST';
+    my $account = exists $env->{'psgix.session'}{'user.account'}
+        ? $env->{'psgix.session'}{'user.account'} : 'GUEST';
     return [200, ['Content-Type' => 'text/plain'], ["Hello $account"]];
 };
 $app = builder {
@@ -51,11 +51,11 @@ $app = builder {
         login_spec => [
             {'uri' => '/login',
              'authenticator' => \&auth_one,
-             'responder' => \&auth_responder,
+             'renderer' => \&auth_renderer,
              'realm' => 'First Password'},
             {'uri' => '/login2',
              'authenticator' => \&auth_two,
-             'responder' => \&auth_responder,
+             'renderer' => \&auth_renderer,
              'realm' => 'Second Password'},
         ],
         logout_spec => {

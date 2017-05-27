@@ -9,7 +9,7 @@ use Plack::Session;
 use Plack::Util;
 use parent qw(Plack::Middleware);
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Plack::Util::Accessor qw(login_spec logout_spec);
 
@@ -29,14 +29,20 @@ sub prepare_app {
         my $authenticator = $w->{'authenticator'};
         'CODE' eq ref $authenticator
             or Carp::croak "LoginChain: lost login_spec->[i]{authenticator}\n";
-        my $responder = $w->{'responder'};
-        'CODE' eq ref $responder
-            or Carp::croak "LoginChain: lost login_spec->[i]{responder}\n";
+        my $renderer = $w->{'renderer'};
+        'CODE' eq ref $renderer
+            or Carp::croak "LoginChain: lost login_spec->[i]{renderer}\n";
     }
     my $logout_spec = $self->logout_spec
         or Carp::croak "LoginChain: lost logout_spec\n";
-    'HASH' eq ref $logout_spec
-        or Carp::croak "LoginChain: logout_spec must be HASHREF\n";
+    for my $w ($logout_spec) {
+        'HASH' eq ref $w
+            or Carp::croak "LoginChain: logout_spec->[i] must be HASHREF\n";
+        $w->{'uri'}
+            or Carp::croak "LoginChain: lost logout_spec->[i]{uri}\n";
+        $w->{'redirect_uri'}
+            or Carp::croak "LoginChain: lost logout_spec->[i]{redirect_uri}\n";
+    }
 }
 
 sub gen_protect {
@@ -74,17 +80,19 @@ sub update_session {
     my($self, $idx, $env, $auth) = @_;
     my $session = Plack::Session->new($env);
     if (! $auth) {
-        $session->remove('account');
-        $session->remove('redirect_uri');
+        $session->remove('user.account');
+        $session->remove('user.redirect_uri');
+        $session->remove('user.auth_time');
     }
     elsif ($idx >= $#{$self->login_spec}) {
-        $session->set('account', $auth->{'account'});
-        $session->set('redirect_uri', $auth->{'redirect_uri'});
+        $session->set('user.account', $auth->{'account'});
+        $session->set('user.redirect_uri', $auth->{'redirect_uri'});
+        $session->set('user.auth_time', time);
     }
     else {
         $self->clean_session($env);
         my $chain_uri = $self->login_spec->[$idx + 1]{'uri'};
-        $session->set($chain_uri . '#account', $auth->{'account'});
+        $session->set('.loginchain' . $chain_uri . '#account', $auth->{'account'});
     }
     return $self;
 }
@@ -93,8 +101,8 @@ sub clean_session {
     my($self, $env) = @_;
     my $session = Plack::Session->new($env);
     for my $stage (@{$self->login_spec}) {
-        $session->remove($stage->{'uri'} . '#account');
-        $session->remove($stage->{'uri'} . '#protect');
+        $session->remove('.loginchain' . $stage->{'uri'} . '#account');
+        $session->remove('.loginchain' . $stage->{'uri'} . '#protect');
     }
     $env->{'.loginchain.erase'} = Plack::Util::FALSE;
     return $self;
@@ -139,21 +147,21 @@ sub get_login {
     my $opt = $self->login_spec->[$idx];
     my $uri = $opt->{'uri'};
     my $first_uri = $self->login_spec->[0]{'uri'};
-    my $account = $session->get('account') || q();
-    my $uri_account = $session->get($uri . '#account') || q();
+    my $account = $session->get('user.account') || q();
+    my $uri_account = $session->get('.loginchain' . $uri . '#account') || q();
     if ($uri ne $first_uri && ! $uri_account) {
         return $self->redirect_first_phase($req);
     }
     my $uri_protect = $self->gen_protect;
     $self->clean_session($env);
-    $session->set($uri . '#account', $uri_account);
-    $session->set($uri . '#protect', $uri_protect);
-    my $res = $opt->{'responder'}->($req, {
+    $session->set('.loginchain' . $uri . '#account', $uri_account);
+    $session->set('.loginchain' . $uri . '#protect', $uri_protect);
+    my $res = $opt->{'renderer'}->($req, {
         'realm' => $opt->{'realm'} || q(),
         'norealm' => ($opt->{'realm'} ? q() : 1),
         'account' => $account,
         'noaccount' => ($account ? q() : 1),
-        'home' => $session->get('redirect_uri') || q(),
+        'home' => $session->get('user.redirect_uri') || q(),
         'faccount' => ($uri eq $first_uri ? $account : $uri_account),
         'fprotect' => $uri_protect,
     });
@@ -171,9 +179,9 @@ sub post_login {
     my $opt = $self->login_spec->[$idx];
     my $uri = $opt->{'uri'};
     my $param = {
-        'account' => $session->get('account') || q(),
-        'uri.account' => $session->get($uri . '#account') || q(),
-        'uri.protect' => $session->get($uri . '#protect') || q(),
+        'account' => $session->get('user.account') || q(),
+        'uri.account' => $session->get('.loginchain' . $uri . '#account') || q(),
+        'uri.protect' => $session->get('.loginchain' . $uri . '#protect') || q(),
         'post.account' => $req->body_parameters->{'account'} || q(),
         'post.password' => $req->body_parameters->{'password'} || q(),
         'post.protect' => $req->body_parameters->{'protect'} || q(),
@@ -234,11 +242,12 @@ Plack::Middleware::Auth::LoginChain - Multi phase authentication session
 
 =head1 VERSION
 
-0.02
+0.03
 
 =head1 SYNOPSIS
 
     use Plack::Builder;
+    use Plack::Session;
     use MyCrypt;
     
     sub auth_totp {
@@ -255,10 +264,22 @@ Plack::Middleware::Auth::LoginChain - Multi phase authentication session
         return {'account' => $account, 'redirect_uri' => "/$account"};
     }
     
-    sub auth_responder {
+    sub auth_renderer {
         my($plack_request, $param) = @_;
         return [200, ['Content-Type' => 'text/html; charset=UTF-8'],
                      [render_template_as_your_like('login.html', $param)]];
+    }
+    
+    my $myapp = sub {
+        my($env) = @_;
+        my $session = Plack::Session->new($env);
+        # authenticated user account: example 'alice'
+        my $user_account = $session->get('user.account');
+        # authenticated user redirect_uri: example '/alice' perhaps home page
+        my $user_redirect_uri = $session->get('user.redirect_uri');
+        # last authenticated UNIX time
+        my $user_auth_time = $session->get('user.auth_time');
+        ...
     }
     
     builder {
@@ -267,11 +288,11 @@ Plack::Middleware::Auth::LoginChain - Multi phase authentication session
             login_spec => [
                 {'uri' => '/login',
                  'authenticator' => \&auth_totp,
-                 'responder' => \&auth_responder,
+                 'renderer' => \&auth_renderer,
                  'realm' => 'One-Time Password'},
                 {'uri' => '/login2',
                  'authenticator' => \&auth_xcrypt,
-                 'responder' => \&auth_responder,
+                 'renderer' => \&auth_renderer,
                  'realm' => 'Password'},
             ],
             logout_spec => {
@@ -290,6 +311,21 @@ login account is validated with RFC 6238 Time-Based One-Time Password
 at first phase, and same account will be validated with normal crypt hash
 comparison at second phase. 
 
+This middleware sets/unsets three authenticated user's informations
+in C<< $env->{'psgix.session'} >>. We may check them with C<Plack::Session>
+wrapper object.
+
+    my $myapp = sub {
+        my($env) = @_;
+        my $session = Plack::Session->new($env);
+        # user account: example 'alice'
+        my $user_account = $session->get('user.account');
+        # user redirect_uri: example '/alice' perhaps URI of home page
+        my $user_redirect_uri = $session->get('user.redirect_uri');
+        # last auth time in UNIX time.
+        my $user_auth_time = $session->get('user.auth_time');
+    }
+
 =head1 METHODS
 
 =over
@@ -301,7 +337,7 @@ An attribute is the specification of login phases.
     login_spec => [
         {'uri' => '/login',            # required just match PATH_INFO
          'authenticator' => \&authenticator, # required code reference
-         'responder' => \&responder,         # required code reference
+         'renderer' => \&renderer,           # required code reference
          'realm' => 'description'},          # recommended scalar
         #...
     ]

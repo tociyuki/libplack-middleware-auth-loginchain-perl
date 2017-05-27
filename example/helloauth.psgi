@@ -25,12 +25,12 @@ sub app_default {
     my $session = Plack::Session->new($env);
     my $path = $req->path_info;
     my($owner) = $path =~ m{\A/([A-Za-z0-9\-_.~]+)}msx;
-    my $account = $session->get('account');
+    my $account = $session->get('user.account');
     my $tmpl = $path eq q(/) ? 'index.html' : 'home.html';
     return render($req, 200, $tmpl, {
         'owner' => $owner || q(),
         'account' => $account,
-        'home' => $session->get('redirect_uri') || q(),
+        'home' => $session->get('user.redirect_uri') || q(),
         'login' => '/login',
         'logout' => '/logout',
     })->finalize;
@@ -52,7 +52,7 @@ sub auth_xcrypt {
     return {'account' => $account, 'redirect_uri' => "/$account"};
 }
 
-sub auth_responder {
+sub auth_renderer {
     my($req, $param) = @_;
     return render($req, 200, 'login.html', $param);
 }
@@ -74,11 +74,11 @@ builder {
         login_spec => [
             {'uri' => '/login',
              'authenticator' => \&auth_totp,
-             'responder' => \&auth_responder,
+             'renderer' => \&auth_renderer,
              'realm' => 'One-Time Password'},
             {'uri' => '/login2',
              'authenticator' => \&auth_xcrypt,
-             'responder' => \&auth_responder,
+             'renderer' => \&auth_renderer,
              'realm' => 'Password'},
         ],
         logout_spec => {
