@@ -52,7 +52,7 @@ sub auth_xcrypt {
     return {'account' => $account, 'redirect_uri' => "/$account"};
 }
 
-sub auth_renderer {
+sub auth_render {
     my($req, $param) = @_;
     return render($req, 200, 'login.html', $param);
 }
@@ -74,11 +74,11 @@ builder {
         login_spec => [
             {'uri' => '/login',
              'authenticator' => \&auth_totp,
-             'renderer' => \&auth_renderer,
+             'renderer' => \&auth_render,
              'realm' => 'One-Time Password'},
             {'uri' => '/login2',
              'authenticator' => \&auth_xcrypt,
-             'renderer' => \&auth_renderer,
+             'renderer' => \&auth_render,
              'realm' => 'Password'},
         ],
         logout_spec => {

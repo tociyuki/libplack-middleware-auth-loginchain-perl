@@ -27,7 +27,7 @@ sub auth_two {
     return {'account' => $account, 'redirect_uri' => "/$account"};
 }
 
-sub auth_renderer {
+sub auth_render {
     my($req, $param) = @_;
     my $t = "title\tlogin\n";
     for my $k (qw(realm account home faccount fprotect)) {
@@ -51,11 +51,11 @@ $app = builder {
         login_spec => [
             {'uri' => '/login',
              'authenticator' => \&auth_one,
-             'renderer' => \&auth_renderer,
+             'renderer' => \&auth_render,
              'realm' => 'First Password'},
             {'uri' => '/login2',
              'authenticator' => \&auth_two,
-             'renderer' => \&auth_renderer,
+             'renderer' => \&auth_render,
              'realm' => 'Second Password'},
         ],
         logout_spec => {

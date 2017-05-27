@@ -264,7 +264,7 @@ Plack::Middleware::Auth::LoginChain - Multi phase authentication session
         return {'account' => $account, 'redirect_uri' => "/$account"};
     }
     
-    sub auth_renderer {
+    sub auth_render {
         my($plack_request, $param) = @_;
         return [200, ['Content-Type' => 'text/html; charset=UTF-8'],
                      [render_template_as_your_like('login.html', $param)]];
@@ -288,11 +288,11 @@ Plack::Middleware::Auth::LoginChain - Multi phase authentication session
             login_spec => [
                 {'uri' => '/login',
                  'authenticator' => \&auth_totp,
-                 'renderer' => \&auth_renderer,
+                 'renderer' => \&auth_render,
                  'realm' => 'One-Time Password'},
                 {'uri' => '/login2',
                  'authenticator' => \&auth_xcrypt,
-                 'renderer' => \&auth_renderer,
+                 'renderer' => \&auth_render,
                  'realm' => 'Password'},
             ],
             logout_spec => {
