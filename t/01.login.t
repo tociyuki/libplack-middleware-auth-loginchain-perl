@@ -5,6 +5,8 @@ use Plack::Test;
 use Plack::Builder;
 use HTTP::Request::Common;
 
+my $verbose = $ENV{'VERBOSE'};
+
 my $users = {
     'alice' => {
         'account' => 'alice',
@@ -78,7 +80,9 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
-#diag "GET /login => POST /login => GET /login2 => POST /login2 => GET /alice";
+$verbose and diag "authenticate and enter login session";
+$verbose and diag "GET /login => POST /login => GET /login2 => POST /login2";
+$verbose and diag "=> GET /alice => GET /";
 
 {
     my $res = $test->request(GET "/login",
@@ -158,7 +162,9 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
-#diag "GET /login => POST /login => GET /login2 => POST /login2 => GET /alice";
+$verbose and diag "verify in login session";
+$verbose and diag "GET /login => POST /login => GET /login2 => POST /login2";
+$verbose and diag "=> GET /alice => GET /";
 
 {
     my $res = $test->request(GET "/login",
@@ -238,7 +244,8 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
-#diag "GET /login => GET / => GET /login2 => GET /";
+$verbose and diag "cancel verification";
+$verbose and diag "GET /login => GET /";
 
 {
     my $res = $test->request(GET "/login",
@@ -266,6 +273,9 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
+$verbose and diag "invalid authentication sequence";
+$verbose and diag "GET /login2 => GET /";
+
 {
     my $res = $test->request(GET "/login2",
         'Cookie' => "plack_session=$cookie");
@@ -285,7 +295,9 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
-#diag "GET /login => POST /login => GET /login2 => GET / => GET /login2";
+$verbose and diag "not allow resuming authentication sequence";
+$verbose and diag "GET /login => POST /login => GET /login2 => GET / => GET /login2";
+$verbose and diag "GET /login => GET /alice";
 
 {
     my $res = $test->request(GET "/login",
@@ -379,6 +391,8 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
+$verbose and diag "logout";
+
 {
     my $res = $test->request(GET "/logout",
         'Cookie' => "plack_session=$cookie");
@@ -388,6 +402,10 @@ my($cookie, $account, $protect);
     like $set_cookie, qr/\bplack_session=\S/msx, 'get /logout set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
+
+$verbose and diag "restart login session";
+$verbose and diag "GET / => GET /login => POST /login => GET /login2 => POST /login2";
+$verbose and diag "GET /alice => GET /logout => GET /";
 
 {
     my $res = $test->request(GET "/",
@@ -486,6 +504,9 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
+$verbose and diag "replay atack";
+$verbose and diag "GET /login => POST /login => POST /login";
+
 {
     my $res = $test->request(GET "/login",
         'Cookie' => "plack_session=$cookie");
@@ -529,6 +550,9 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
+$verbose and diag "invalid authentication sequence";
+$verbose and diag "GET /login => POST /login2";
+
 {
     my $res = $test->request(GET "/login",
         'Cookie' => "plack_session=$cookie");
@@ -558,6 +582,9 @@ my($cookie, $account, $protect);
     like $set_cookie, qr/\bplack_session=\S/msx, 'post /login set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
+
+$verbose and diag "invalid authentication sequence";
+$verbose and diag "GET /login => POST /login => GET /login2 => POST /login";
 
 {
     my $res = $test->request(GET "/login",
@@ -619,6 +646,9 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
+$verbose and diag "invalid authentication sequence";
+$verbose and diag "GET /login => POST /login => POST /login2";
+
 {
     my $res = $test->request(GET "/login",
         'Cookie' => "plack_session=$cookie");
@@ -662,6 +692,9 @@ my($cookie, $account, $protect);
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
 
+$verbose and diag "invalid authentication sequence";
+$verbose and diag "GET / => POST /login => POST /login2";
+
 {
     my $res = $test->request(GET "/",
         'Cookie' => "plack_session=$cookie");
@@ -696,6 +729,10 @@ my($cookie, $account, $protect);
     like $set_cookie, qr/\bplack_session=\S/msx, 'post /login2 set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
 }
+
+$verbose and diag "normal login session";
+$verbose and diag "GET /login => POST /login => GET /login2 => POST /login2";
+$verbose and diag "GET /alice => GET /logout => GET /";
 
 {
     my $res = $test->request(GET "/login",
