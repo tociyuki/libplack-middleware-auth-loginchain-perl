@@ -101,6 +101,7 @@ __DATA__
 <h1>index</h1>
 <p>Top |
 {{#account}}<a href="{{home}}">{{account}} Home</a>
+| <a href="{{login}}">Verify</a>
 | <a href="{{logout}}">Logout</a>{{/account}}
 {{^account}}<a href="{{login}}">Login</a>{{/account}}</p>
 </body>
@@ -115,7 +116,9 @@ __DATA__
 <body>
 <h1>{{owner}} Home</h1>
 <p><a href="/">Top</a> |
-{{#account}}{{account}} Home | <a href="{{logout}}">Logout</a>{{/account}}
+{{#account}}{{account}} Home
+| <a href="{{login}}">Verify</a>
+| <a href="{{logout}}">Logout</a>{{/account}}
 {{^account}}<a href="{{login}}">Login</a>{{/account}}</p>
 </body>
 </html>

@@ -43,7 +43,9 @@ my $app = sub {
     my($env) = @_;
     my $account = exists $env->{'psgix.session'}{'user.account'}
         ? $env->{'psgix.session'}{'user.account'} : 'GUEST';
-    return [200, ['Content-Type' => 'text/plain'], ["Hello $account"]];
+    my $verified = exists $env->{'psgix.session'}{'user.verified'}
+        ? q(*) : q();
+    return [200, ['Content-Type' => 'text/plain'], ["Hello $account$verified"]];
 };
 $app = builder {
     enable 'Session';
@@ -141,7 +143,7 @@ my($cookie, $account, $protect);
 {
     my $res = $test->request(GET "/alice",
         'Cookie' => "plack_session=$cookie");
-    is $res->content, "Hello alice", "get /alice";
+    is $res->content, "Hello alice*", "get /alice";
     my $set_cookie = $res->headers->header('Set-Cookie') || q();
     like $set_cookie, qr/\bplack_session=\S/msx, 'get /alice set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
@@ -150,7 +152,7 @@ my($cookie, $account, $protect);
 {
     my $res = $test->request(GET "/",
         'Cookie' => "plack_session=$cookie");
-    is $res->content, "Hello alice", "get / content";
+    is $res->content, "Hello alice*", "get / content";
     my $set_cookie = $res->headers->header('Set-Cookie') || q();
     like $set_cookie, qr/\bplack_session=\S/msx, 'get / set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
@@ -221,7 +223,7 @@ my($cookie, $account, $protect);
 {
     my $res = $test->request(GET "/alice",
         'Cookie' => "plack_session=$cookie");
-    is $res->content, "Hello alice", "get /alice";
+    is $res->content, "Hello alice*", "get /alice";
     my $set_cookie = $res->headers->header('Set-Cookie') || q();
     like $set_cookie, qr/\bplack_session=\S/msx, 'get /alice set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
@@ -230,7 +232,7 @@ my($cookie, $account, $protect);
 {
     my $res = $test->request(GET "/",
         'Cookie' => "plack_session=$cookie");
-    is $res->content, "Hello alice", "get / content";
+    is $res->content, "Hello alice*", "get / content";
     my $set_cookie = $res->headers->header('Set-Cookie') || q();
     like $set_cookie, qr/\bplack_session=\S/msx, 'get / set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
@@ -459,7 +461,7 @@ my($cookie, $account, $protect);
 {
     my $res = $test->request(GET "/alice",
         'Cookie' => "plack_session=$cookie");
-    is $res->content, "Hello alice", "get /alice";
+    is $res->content, "Hello alice*", "get /alice";
     my $set_cookie = $res->headers->header('Set-Cookie') || q();
     like $set_cookie, qr/\bplack_session=\S/msx, 'get /alice set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;
@@ -758,7 +760,7 @@ my($cookie, $account, $protect);
 {
     my $res = $test->request(GET "/alice",
         'Cookie' => "plack_session=$cookie");
-    is $res->content, "Hello alice", "get /alice";
+    is $res->content, "Hello alice*", "get /alice";
     my $set_cookie = $res->headers->header('Set-Cookie') || q();
     like $set_cookie, qr/\bplack_session=\S/msx, 'get /alice set-cookie';
     ($cookie) = $set_cookie =~ m/\bplack_session=([0-9a-f]+)/msx;

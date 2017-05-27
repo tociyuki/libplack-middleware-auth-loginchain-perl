@@ -81,11 +81,13 @@ sub update_session {
     my $session = Plack::Session->new($env);
     if (! $auth) {
         $session->remove('user.account');
+        $session->remove('user.verified');
         $session->remove('user.redirect_uri');
         $session->remove('user.auth_time');
     }
     elsif ($idx >= $#{$self->login_spec}) {
         $session->set('user.account', $auth->{'account'});
+        $session->set('user.verified', $auth->{'account'});
         $session->set('user.redirect_uri', $auth->{'redirect_uri'});
         $session->set('user.auth_time', time);
     }
@@ -156,6 +158,7 @@ sub get_login {
     $self->clean_session($env);
     $session->set('.loginchain' . $uri . '#account', $uri_account);
     $session->set('.loginchain' . $uri . '#protect', $uri_protect);
+    $session->remove('user.verified');
     my $res = $opt->{'renderer'}->($req, {
         'realm' => $opt->{'realm'} || q(),
         'norealm' => ($opt->{'realm'} ? q() : 1),
@@ -190,6 +193,7 @@ sub post_login {
         return $self->redirect_first_phase($req);
     }
     my $auth = $self->authenticate($idx, $req, $param);
+    $session->remove('user.verified');
     $self->update_session($idx, $env, $auth);
     my $location = ! $auth ? $self->login_spec->[0]{'uri'}
                  : $idx >= $#{$self->login_spec} ? $auth->{'redirect_uri'}
@@ -279,6 +283,9 @@ Plack::Middleware::Auth::LoginChain - Multi phase authentication session
         my $user_redirect_uri = $session->get('user.redirect_uri');
         # last authenticated UNIX time
         my $user_auth_time = $session->get('user.auth_time');
+        # success condition last authentication sequence
+        # if this is not account, user canelled verification
+        my $user_verified = $session->get('user.verified');
         ...
     }
     
@@ -311,20 +318,19 @@ login account is validated with RFC 6238 Time-Based One-Time Password
 at first phase, and same account will be validated with normal crypt hash
 comparison at second phase. 
 
-This middleware sets/unsets three authenticated user's informations
+This middleware sets/unsets four authenticated user's informations
 in C<< $env->{'psgix.session'} >>. We may check them with C<Plack::Session>
 wrapper object.
 
-    my $myapp = sub {
-        my($env) = @_;
-        my $session = Plack::Session->new($env);
-        # user account: example 'alice'
-        my $user_account = $session->get('user.account');
-        # user redirect_uri: example '/alice' perhaps URI of home page
-        my $user_redirect_uri = $session->get('user.redirect_uri');
-        # last auth time in UNIX time.
-        my $user_auth_time = $session->get('user.auth_time');
-    }
+    'user.account'          user account: example 'alice'
+
+    'user.redirect_uri'     user redirect_uri: example '/alice'
+                            perhaps this may be URI of home page.
+
+    'user.auth_time'        last auth time in UNIX time
+
+    'user.verified'         status of last authentication sequence
+                            if false, user canelled verification
 
 =head1 METHODS
 
