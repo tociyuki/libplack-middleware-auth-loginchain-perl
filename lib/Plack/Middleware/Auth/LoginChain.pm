@@ -283,8 +283,7 @@ Plack::Middleware::Auth::LoginChain - Multi phase authentication session
         my $user_redirect_uri = $session->get('user.redirect_uri');
         # last authenticated UNIX time
         my $user_auth_time = $session->get('user.auth_time');
-        # success condition last authentication sequence
-        # if this is not account, user canelled verification
+        # if false, user cancelled last verification
         my $user_verified = $session->get('user.verified');
         ...
     }
@@ -330,7 +329,7 @@ wrapper object.
     'user.auth_time'        last auth time in UNIX time
 
     'user.verified'         status of last authentication sequence
-                            if false, user canelled verification
+                            if false, user cancelled verification
 
 =head1 METHODS
 
